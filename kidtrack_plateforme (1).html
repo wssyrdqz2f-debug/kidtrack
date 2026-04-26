@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KidTrack — Tableau de bord</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  :root {
+    --bg:        #0b0f1a;
+    --bg2:       #111827;
+    --bg3:       #1a2235;
+    --border:    rgba(255,255,255,0.07);
+    --border2:   rgba(255,255,255,0.13);
+    --text:      #f0f4ff;
+    --text2:     #8b9bb4;
+    --text3:     #4a5568;
+    --accent:    #3b82f6;
+    --accent2:   #1d4ed8;
+    --green:     #10b981;
+    --red:       #ef4444;
+    --amber:     #f59e0b;
+    --purple:    #8b5cf6;
+    --radius:    12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    height: 56px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.3px;
+  }
+
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  .topbar-sep { flex: 1; }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
+
+  .topbar-btn {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .topbar-btn:hover { background: var(--bg3); color: var(--text); }
+  .topbar-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ── LAYOUT ── */
+  .app-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 300px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 4px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text3);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 12px 0;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .15s;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; flex-direction: column; flex: 1; overflow-y: auto; padding: 16px; }
+  .tab-content.active { display: flex; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .card-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  /* ── CHILD CARD ── */
+  .child-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .child-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .child-info h3 { font-size: 14px; font-weight: 500; }
+  .child-info p  { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  .badge-safe {
+    margin-left: auto;
+    background: rgba(16,185,129,0.15);
+    color: var(--green);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 1px solid rgba(16,185,129,0.3);
+  }
+  .badge-alert {
+    margin-left: auto;
+    background: rgba(239,68,68,0.15);
+    color: var(--red);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 1px solid rgba(239,68,68,0.3);
+  }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .stat-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+
+  .stat-box .val {
+    font-size: 18px;
+    font-weight: 600;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+  }
+  .stat-box .lbl { font-size: 10px; color: var(--text2); margin-top: 2px; }
+
+  /* ── COORDS ── */
+  .coords-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    display: flex;
+    gap: 12px;
+  }
+
+  /* ── HISTORY ── */
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-time { color: var(--text3); font-family: 'DM Mono', monospace; min-width: 45px; }
+  .history-coords { color: var(--text2); }
+
+  /* ── FORMS ── */
+  .form-group { margin-bottom: 14px; }
+  .form-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .form-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color .15s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text3); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-primary:hover { background: var(--accent2); }
+
+  .btn-secondary {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 9px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all .15s;
+  }
+  .btn-secondary:hover { background: var(--bg3); color: var(--text); }
+
+  /* ── GEOFENCE LIST ── */
+  .geofence-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+  }
+  .geo-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: rgba(59,130,246,0.15);
+    border: 1px solid rgba(59,130,246,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .geo-info h4 { font-size: 13px; font-weight: 500; }
+  .geo-info p  { font-size: 11px; color: var(--text2); margin-top: 1px; }
+  .geo-delete {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 15px;
+    padding: 4px;
+  }
+  .geo-delete:hover { color: var(--red); }
+
+  /* ── ALERTS ── */
+  .alert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    border: 1px solid;
+  }
+  .alert-item.danger {
+    background: rgba(239,68,68,0.08);
+    border-color: rgba(239,68,68,0.2);
+  }
+  .alert-item.info {
+    background: rgba(59,130,246,0.08);
+    border-color: rgba(59,130,246,0.2);
+  }
+  .alert-item.success {
+    background: rgba(16,185,129,0.08);
+    border-color: rgba(16,185,129,0.2);
+  }
+  .alert-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .alert-item.danger .alert-dot  { background: var(--red); }
+  .alert-item.info .alert-dot    { background: var(--accent); }
+  .alert-item.success .alert-dot { background: var(--green); }
+  .alert-msg { font-size: 12px; line-height: 1.5; }
+  .alert-msg strong { font-weight: 500; display: block; }
+  .alert-msg span { color: var(--text2); font-size: 11px; }
+
+  /* ── SMS CONFIG ── */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .toggle-label { font-size: 13px; color: var(--text2); }
+
+  .toggle {
+    width: 36px; height: 20px;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    transition: background .2s;
+  }
+  .toggle.on { background: var(--accent); border-color: var(--accent); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    top: 2px; left: 3px;
+    transition: left .2s;
+  }
+  .toggle.on::after { left: 19px; }
+
+  /* ── MAP ── */
+  .map-wrap {
+    flex: 1;
+    position: relative;
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+  }
+
+  /* Override Leaflet dark */
+  .leaflet-container { background: #0b0f1a; }
+  .leaflet-tile { filter: brightness(0.7) saturate(0.6); }
+
+  /* ── MAP OVERLAY CONTROLS ── */
+  .map-controls {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 400;
+  }
+
+  .map-btn {
+    width: 36px; height: 36px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text2);
+    font-size: 15px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .map-btn:hover { background: var(--bg3); color: var(--text); }
+  .map-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .map-info-bar {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    z-index: 400;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+  }
+
+  .map-info-item { display: flex; align-items: center; gap: 6px; color: var(--text2); }
+  .map-info-item span { color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; }
+
+  .geo-mode-banner {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 20px;
+    z-index: 400;
+    display: none;
+    align-items: center;
+    gap: 8px;
+  }
+  .geo-mode-banner.visible { display: flex; }
+
+  .cancel-geo {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: #fff;
+    font-family: inherit;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  /* ── NOTIFICATION TOAST ── */
+  .toast-container {
+    position: fixed;
+    top: 70px;
+    right: 14px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .toast {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 13px;
+    min-width: 240px;
+    max-width: 300px;
+    animation: slideIn .2s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .toast.danger { border-left: 3px solid var(--red); }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.info { border-left: 3px solid var(--accent); }
+  .toast-icon { font-size: 15px; margin-top: 1px; }
+  .toast-body strong { display: block; font-size: 13px; }
+  .toast-body span { font-size: 11px; color: var(--text2); }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    font-weight: 500;
+    margin-bottom: 10px;
+    margin-top: 4px;
+  }
+
+  select.form-input option { background: #1a2235; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">📍</div>
+    KidTrack
+  </div>
+
+  <div class="topbar-sep"></div>
+
+  <div class="status-pill">
+    <div class="dot"></div>
+    <span id="last-update">Dernière maj : --:--:--</span>
+  </div>
+
+  <button class="topbar-btn" onclick="centerMap()">📍 Centrer</button>
+  <button class="topbar-btn active" onclick="toggleGeofenceMode()" id="geo-toggle-btn">+ Zone</button>
+</div>
+
+<!-- APP BODY -->
+<div class="app-body">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-tabs">
+      <button class="tab-btn active" onclick="showTab('suivi')">Suivi</button>
+      <button class="tab-btn" onclick="showTab('geofence')">Zones</button>
+      <button class="tab-btn" onclick="showTab('alertes')">Alertes</button>
+      <button class="tab-btn" onclick="showTab('sms')">SMS</button>
+    </div>
+
+    <!-- TAB : SUIVI -->
+    <div class="tab-content active" id="tab-suivi">
+
+      <div class="child-card">
+        <div class="child-avatar">👦</div>
+        <div class="child-info">
+          <h3>Amadou</h3>
+          <p>KIDTRACK_001</p>
+        </div>
+        <div class="badge-safe" id="child-status">En sécurité</div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="val" id="stat-sats">8</div>
+          <div class="lbl">Satellites</div>
+        </div>
+        <div class="stat-box">
+          <div class="val" id="stat-speed">0 km/h</div>
+          <div class="lbl">Vitesse</div>
+        </div>
+      </div>
+
+      <p class="section-title">Position actuelle</p>
+      <div class="coords-box">
+        <div>
+          <div style="color:var(--text3);font-size:10px;margin-bottom:2px">LAT</div>
+          <div id="coord-lat">12.364640</div>
+        </div>
+        <div>
+          <div style="color:var(--text3);font-size:10px;margin-bottom:2px">LNG</div>
+          <div id="coord-lng">-1.533040</div>
+        </div>
+      </div>
+
+      <p class="section-title">Historique récent</p>
+      <div id="history-list">
+        <div class="history-item">
+          <span class="history-time">14:32</span>
+          <span class="history-coords">12.3646, -1.5330</span>
+        </div>
+        <div class="history-item">
+          <span class="history-time">14:02</span>
+          <span class="history-coords">12.3641, -1.5318</span>
+        </div>
+        <div class="history-item">
+          <span class="history-time">13:32</span>
+          <span class="history-coords">12.3638, -1.5309</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB : GEOFENCE -->
+    <div class="tab-content" id="tab-geofence">
+      <p class="section-title">Ajouter une zone</p>
+      <div class="card">
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6">
+          Cliquez sur <strong style="color:var(--accent)">+ Zone</strong> dans la barre du haut, puis cliquez sur la carte pour placer votre zone. Ou entrez les coordonnées ci-dessous.
+        </p>
+        <div class="form-group">
+          <label class="form-label">Nom du lieu</label>
+          <input class="form-input" id="geo-name" type="text" placeholder="ex: École, Maison...">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Latitude</label>
+            <input class="form-input" id="geo-lat" type="number" step="0.000001" placeholder="12.3646">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Longitude</label>
+            <input class="form-input" id="geo-lng" type="number" step="0.000001" placeholder="-1.5330">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rayon autorisé (mètres)</label>
+          <input class="form-input" id="geo-radius" type="number" value="300" min="50" max="5000">
+        </div>
+        <button class="btn-primary" onclick="addGeofence()">Créer la zone</button>
+      </div>
+
+      <p class="section-title">Zones actives</p>
+      <div id="geofence-list">
+        <div class="geofence-item">
+          <div class="geo-icon">🏠</div>
+          <div class="geo-info">
+            <h4>Maison</h4>
+            <p>Rayon : 200m · Actif</p>
+          </div>
+          <button class="geo-delete" onclick="removeDefaultGeo(this)">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB : ALERTES -->
+    <div class="tab-content" id="tab-alertes">
+      <p class="section-title">Alertes récentes</p>
+      <div id="alert-list">
+        <div class="alert-item success">
+          <div class="alert-dot"></div>
+          <div class="alert-msg">
+            <strong>Zone "Maison" — Entrée</strong>
+            <span>Aujourd'hui à 13:15</span>
+          </div>
+        </div>
+        <div class="alert-item info">
+          <div class="alert-dot"></div>
+          <div class="alert-msg">
+            <strong>Appareil connecté</strong>
+            <span>Aujourd'hui à 12:00</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="section-title" style="margin-top:16px">Numéro d'alerte SMS</p>
+      <div class="form-group">
+        <label class="form-label">Numéro du parent</label>
+        <input class="form-input" id="phone-alert" type="tel" placeholder="+226 XX XX XX XX">
+      </div>
+      <button class="btn-primary" onclick="savePhoneAlert()">Enregistrer</button>
+    </div>
+
+    <!-- TAB : SMS -->
+    <div class="tab-content" id="tab-sms">
+      <p class="section-title">Rapports SMS périodiques</p>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Activer les rapports SMS</span>
+        <div class="toggle on" id="sms-toggle" onclick="toggleSMS()"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Numéro destinataire</label>
+        <input class="form-input" id="sms-phone" type="tel" placeholder="+226 XX XX XX XX">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Fréquence d'envoi</label>
+        <select class="form-input" id="sms-interval">
+          <option value="10">Toutes les 10 minutes</option>
+          <option value="15">Toutes les 15 minutes</option>
+          <option value="30" selected>Toutes les 30 minutes</option>
+          <option value="60">Toutes les heures</option>
+          <option value="120">Toutes les 2 heures</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Plage horaire active</label>
+        <div class="form-row">
+          <input class="form-input" id="sms-start" type="time" value="07:00">
+          <input class="form-input" id="sms-end" type="time" value="20:00">
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="saveSMSConfig()">Enregistrer la config</button>
+
+      <div class="card" style="margin-top:16px">
+        <p class="card-label">Aperçu du message SMS</p>
+        <p style="font-size:12px;color:var(--text2);font-family:'DM Mono',monospace;line-height:1.7">
+          KidTrack: Amadou se trouve à<br>
+          Lat:12.3646 Lng:-1.5330<br>
+          Vitesse:0km/h Sats:8<br>
+          14:32 — maps.google.com/?q=12.3646,-1.5330
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <!-- Geofence mode banner -->
+    <div class="geo-mode-banner" id="geo-banner">
+      📍 Cliquez sur la carte pour placer une zone
+      <button class="cancel-geo" onclick="cancelGeofenceMode()">Annuler</button>
+    </div>
+
+    <!-- Map controls -->
+    <div class="map-controls">
+      <button class="map-btn" onclick="map.zoomIn()" title="Zoom +">+</button>
+      <button class="map-btn" onclick="map.zoomOut()" title="Zoom -">−</button>
+      <button class="map-btn" onclick="centerMap()" title="Centrer">⊙</button>
+    </div>
+
+    <!-- Map info bar -->
+    <div class="map-info-bar">
+      <div class="map-info-item">🛰 Satellites <span id="bar-sats">8</span></div>
+      <div class="map-info-item">📍 Position <span id="bar-coords">12.3646, -1.5330</span></div>
+      <div class="map-info-item">🟢 <span id="bar-status">En sécurité</span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOASTS -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ──────────────────────────────────────────────
+//  CONFIGURATION
+// ──────────────────────────────────────────────
+const API_URL     = '/api/location';     // Votre endpoint backend
+const DEVICE_ID   = 'KIDTRACK_001';
+const POLL_INTERVAL = 15000;             // Polling toutes les 15s
+
+// ──────────────────────────────────────────────
+//  ÉTAT GLOBAL
+// ──────────────────────────────────────────────
+let state = {
+  lat: 12.364640,
+  lng: -1.533040,
+  speed: 0,
+  satellites: 8,
+  geofences: [
+    { id: 1, name: 'Maison', lat: 12.364640, lng: -1.533040, radius: 200, icon: '🏠' }
+  ],
+  alerts: [],
+  geofenceMode: false,
+  smsEnabled: true
+};
+
+// ──────────────────────────────────────────────
+//  CARTE LEAFLET
+// ──────────────────────────────────────────────
+const map = L.map('map', {
+  center: [state.lat, state.lng],
+  zoom: 15,
+  zoomControl: false,
+  attributionControl: false
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19
+}).addTo(map);
+
+// Marker enfant
+const childIcon = L.divIcon({
+  html: `<div style="
+    width:36px;height:36px;
+    background:linear-gradient(135deg,#3b82f6,#8b5cf6);
+    border:3px solid #fff;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;
+    box-shadow:0 2px 12px rgba(59,130,246,0.5)
+  ">👦</div>`,
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+  className: ''
+});
+
+let childMarker = L.marker([state.lat, state.lng], { icon: childIcon }).addTo(map);
+childMarker.bindPopup('<b>Amadou</b><br>Position en direct');
+
+// Trail (historique de trajet)
+let trail = [[state.lat, state.lng]];
+let trailLine = L.polyline(trail, {
+  color: '#3b82f6',
+  weight: 2,
+  opacity: 0.5,
+  dashArray: '4,6'
+}).addTo(map);
+
+// Geofences sur carte
+let geofenceCircles = {};
+let geofenceMarkers = {};
+
+function renderGeofences() {
+  // Supprimer anciens
+  Object.values(geofenceCircles).forEach(c => map.removeLayer(c));
+  Object.values(geofenceMarkers).forEach(m => map.removeLayer(m));
+  geofenceCircles = {};
+  geofenceMarkers = {};
+
+  state.geofences.forEach(geo => {
+    geofenceCircles[geo.id] = L.circle([geo.lat, geo.lng], {
+      radius: geo.radius,
+      color: '#3b82f6',
+      fillColor: '#3b82f6',
+      fillOpacity: 0.08,
+      weight: 1.5,
+      dashArray: '6,4'
+    }).addTo(map);
+
+    const geoIcon = L.divIcon({
+      html: `<div style="
+        background:#1a2235;
+        border:1px solid rgba(59,130,246,0.4);
+        border-radius:8px;
+        padding:4px 8px;
+        font-size:12px;
+        color:#93c5fd;
+        white-space:nowrap;
+      ">${geo.icon} ${geo.name}</div>`,
+      className: '',
+      iconAnchor: [40, 10]
+    });
+
+    geofenceMarkers[geo.id] = L.marker([geo.lat, geo.lng], { icon: geoIcon }).addTo(map);
+  });
+}
+
+renderGeofences();
+
+// Clic carte pour geofence
+map.on('click', function(e) {
+  if (!state.geofenceMode) return;
+  document.getElementById('geo-lat').value = e.latlng.lat.toFixed(6);
+  document.getElementById('geo-lng').value = e.latlng.lng.toFixed(6);
+  cancelGeofenceMode();
+  showTab('geofence');
+  showToast('info', '📍 Coordonnées capturées', 'Complétez le nom et le rayon');
+});
+
+// ──────────────────────────────────────────────
+//  POLLING API
+// ──────────────────────────────────────────────
+function pollLocation() {
+  // En production, décommentez et adaptez :
+  /*
+  fetch(`${API_URL}?device_id=${DEVICE_ID}`)
+    .then(r => r.json())
+    .then(data => {
+      updatePosition(data.lat, data.lng, data.speed, data.satellites);
+    })
+    .catch(err => console.warn('Erreur API:', err));
+  */
+
+  // SIMULATION pour démo hackathon
+  simulateMovement();
+}
+
+function simulateMovement() {
+  const noise = () => (Math.random() - 0.5) * 0.0003;
+  const newLat = state.lat + noise();
+  const newLng = state.lng + noise();
+  const speed  = Math.round(Math.random() * 5);
+  const sats   = 7 + Math.floor(Math.random() * 4);
+  updatePosition(newLat, newLng, speed, sats);
+}
+
+function updatePosition(lat, lng, speed, satellites) {
+  const prevLat = state.lat;
+  const prevLng = state.lng;
+
+  state.lat = lat;
+  state.lng = lng;
+  state.speed = speed;
+  state.satellites = satellites;
+
+  // Mise à jour marker
+  childMarker.setLatLng([lat, lng]);
+
+  // Trail
+  trail.push([lat, lng]);
+  if (trail.length > 50) trail.shift();
+  trailLine.setLatLngs(trail);
+
+  // UI
+  document.getElementById('coord-lat').textContent = lat.toFixed(6);
+  document.getElementById('coord-lng').textContent = lng.toFixed(6);
+  document.getElementById('stat-speed').textContent = speed + ' km/h';
+  document.getElementById('stat-sats').textContent  = satellites;
+  document.getElementById('bar-sats').textContent   = satellites;
+  document.getElementById('bar-coords').textContent = lat.toFixed(4) + ', ' + lng.toFixed(4);
+
+  // Heure
+  const now = new Date();
+  document.getElementById('last-update').textContent =
+    'Dernière maj : ' + now.toLocaleTimeString('fr-FR');
+
+  // Ajout dans historique
+  addHistoryEntry(lat, lng);
+
+  // Vérif geofences
+  checkGeofences(lat, lng);
+}
+
+function addHistoryEntry(lat, lng) {
+  const list = document.getElementById('history-list');
+  const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const item = document.createElement('div');
+  item.className = 'history-item';
+  item.innerHTML = `<span class="history-time">${time}</span>
+    <span class="history-coords">${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
+  list.insertBefore(item, list.firstChild);
+  if (list.children.length > 10) list.removeChild(list.lastChild);
+}
+
+// ──────────────────────────────────────────────
+//  GEOFENCING
+// ──────────────────────────────────────────────
+function checkGeofences(lat, lng) {
+  let inAny = false;
+
+  state.geofences.forEach(geo => {
+    const dist = getDistance(lat, lng, geo.lat, geo.lng);
+    if (dist <= geo.radius) {
+      inAny = true;
+    } else {
+      // Déclenche alerte seulement si c'est nouveau
+      const alertKey = 'alert_' + geo.id;
+      if (!state['_prevIn_' + geo.id]) {
+        addAlert('danger', `⚠ Sortie de zone "${geo.name}"`, 'Maintenant');
+        showToast('danger', '⚠ Zone dépassée !', `Amadou a quitté "${geo.name}"`);
+        setChildStatus(false);
+      }
+    }
+    state['_prevIn_' + geo.id] = (dist <= geo.radius);
+  });
+
+  if (inAny) setChildStatus(true);
+}
+
+function setChildStatus(safe) {
+  const el = document.getElementById('child-status');
+  const bar = document.getElementById('bar-status');
+  if (safe) {
+    el.className = 'badge-safe';
+    el.textContent = 'En sécurité';
+    bar.textContent = 'En sécurité';
+  } else {
+    el.className = 'badge-alert';
+    el.textContent = '⚠ Hors zone';
+    bar.textContent = '⚠ Hors zone';
+  }
+}
+
+function getDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function addGeofence() {
+  const name   = document.getElementById('geo-name').value.trim();
+  const lat    = parseFloat(document.getElementById('geo-lat').value);
+  const lng    = parseFloat(document.getElementById('geo-lng').value);
+  const radius = parseInt(document.getElementById('geo-radius').value);
+
+  if (!name || isNaN(lat) || isNaN(lng) || isNaN(radius)) {
+    showToast('danger', 'Champs manquants', 'Remplissez tous les champs');
+    return;
+  }
+
+  const icons = ['📍','🏫','🏥','⛪','🏪','🏞'];
+  const geo = {
+    id: Date.now(),
+    name, lat, lng, radius,
+    icon: icons[state.geofences.length % icons.length]
+  };
+
+  state.geofences.push(geo);
+  renderGeofences();
+  renderGeofenceList();
+
+  document.getElementById('geo-name').value   = '';
+  document.getElementById('geo-lat').value    = '';
+  document.getElementById('geo-lng').value    = '';
+  document.getElementById('geo-radius').value = '300';
+
+  showToast('success', '✓ Zone créée', `"${name}" — rayon ${radius}m`);
+  addAlert('info', `Zone "${name}" créée`, 'Maintenant');
+}
+
+function renderGeofenceList() {
+  const list = document.getElementById('geofence-list');
+  list.innerHTML = state.geofences.map(geo => `
+    <div class="geofence-item">
+      <div class="geo-icon">${geo.icon}</div>
+      <div class="geo-info">
+        <h4>${geo.name}</h4>
+        <p>Rayon : ${geo.radius}m · Actif</p>
+      </div>
+      <button class="geo-delete" onclick="deleteGeofence(${geo.id})">✕</button>
+    </div>
+  `).join('');
+}
+
+function deleteGeofence(id) {
+  state.geofences = state.geofences.filter(g => g.id !== id);
+  renderGeofences();
+  renderGeofenceList();
+  showToast('info', 'Zone supprimée', '');
+}
+
+function removeDefaultGeo(btn) {
+  btn.closest('.geofence-item').remove();
+  state.geofences = state.geofences.filter(g => g.id !== 1);
+  renderGeofences();
+}
+
+// ──────────────────────────────────────────────
+//  GEOFENCE MODE
+// ──────────────────────────────────────────────
+function toggleGeofenceMode() {
+  state.geofenceMode = !state.geofenceMode;
+  document.getElementById('geo-banner').classList.toggle('visible', state.geofenceMode);
+  document.getElementById('geo-toggle-btn').classList.toggle('active', state.geofenceMode);
+  if (state.geofenceMode) {
+    map.getContainer().style.cursor = 'crosshair';
+    showTab('geofence');
+  } else {
+    map.getContainer().style.cursor = '';
+  }
+}
+
+function cancelGeofenceMode() {
+  state.geofenceMode = false;
+  document.getElementById('geo-banner').classList.remove('visible');
+  document.getElementById('geo-toggle-btn').classList.remove('active');
+  map.getContainer().style.cursor = '';
+}
+
+// ──────────────────────────────────────────────
+//  ALERTES
+// ──────────────────────────────────────────────
+function addAlert(type, msg, time) {
+  const list = document.getElementById('alert-list');
+  const el = document.createElement('div');
+  el.className = 'alert-item ' + type;
+  el.innerHTML = `<div class="alert-dot"></div>
+    <div class="alert-msg"><strong>${msg}</strong><span>${time}</span></div>`;
+  list.insertBefore(el, list.firstChild);
+}
+
+// ──────────────────────────────────────────────
+//  TOASTS
+// ──────────────────────────────────────────────
+function showToast(type, title, body) {
+  const icons = { danger: '🚨', success: '✅', info: 'ℹ️' };
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = `<span class="toast-icon">${icons[type]||'📢'}</span>
+    <div class="toast-body"><strong>${title}</strong><span>${body}</span></div>`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s';
+    setTimeout(() => t.remove(), 300); }, 4000);
+}
+
+// ──────────────────────────────────────────────
+//  TABS
+// ──────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    const tabs = ['suivi','geofence','alertes','sms'];
+    b.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ──────────────────────────────────────────────
+//  ACTIONS
+// ──────────────────────────────────────────────
+function centerMap() {
+  map.flyTo([state.lat, state.lng], 16, { duration: 1 });
+}
+
+function toggleSMS() {
+  state.smsEnabled = !state.smsEnabled;
+  document.getElementById('sms-toggle').classList.toggle('on', state.smsEnabled);
+}
+
+function saveSMSConfig() {
+  const phone    = document.getElementById('sms-phone').value;
+  const interval = document.getElementById('sms-interval').value;
+  if (!phone) { showToast('danger', 'Numéro manquant', 'Entrez un numéro de téléphone'); return; }
+  showToast('success', '✓ Configuration SMS sauvée', `Envoi toutes les ${interval} min`);
+}
+
+function savePhoneAlert() {
+  const phone = document.getElementById('phone-alert').value;
+  if (!phone) { showToast('danger', 'Numéro manquant', 'Entrez un numéro'); return; }
+  showToast('success', '✓ Numéro d\'alerte enregistré', phone);
+}
+
+// ──────────────────────────────────────────────
+//  DÉMARRAGE
+// ──────────────────────────────────────────────
+pollLocation();
+setInterval(pollLocation, POLL_INTERVAL);
+
+// Message de bienvenue
+setTimeout(() => {
+  showToast('success', 'KidTrack connecté', 'KIDTRACK_001 en ligne');
+}, 800);
+</script>
+</body>
+</html>
